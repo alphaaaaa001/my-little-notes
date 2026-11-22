@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>返回按钮 hover · 黑环 demo v3</title>
+<style>
+  :root {
+    --paper: #f3f2ee;
+    --ink: #1a1917;
+    --ink-2: #6b675e;
+    --serif: Georgia, 'Songti SC', serif;
+    --hei: 'MiSans', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 48px 22px 90px; background: var(--paper); color: var(--ink); font-family: var(--hei); }
+  main { max-width: 920px; margin: 0 auto; }
+  h1 { font: 700 26px/1.3 var(--serif); margin: 0 0 8px; }
+  .lead { color: var(--ink-2); font-size: 13px; line-height: 1.85; margin: 0 0 6px; }
+  .lead b { color: var(--ink); }
+  .lead code { font-family: ui-monospace, Consolas, monospace; background: rgba(26,25,23,.07); padding: 1px 5px; border-radius: 4px; }
+
+  .row { display: flex; align-items: baseline; gap: 26px; flex-wrap: wrap; padding: 26px 0; border-top: 1px dashed rgba(26,25,23,.14); }
+  .row__label { min-width: 132px; color: #a8a294; font-size: 11.5px; letter-spacing: .1em; }
+
+  /* ── 返回按钮：箭头 + 文字 + 右边一圈黑环 ─────────────────────── */
+  .bl-back {
+    --ring: 21px;
+    display: inline-flex; align-items: center; gap: 9px;
+    color: var(--ink-2); text-decoration: none; cursor: pointer;
+    font-size: 19px; line-height: 1.3;
+    transition: color .18s ease;
+  }
+  .bl-back:hover { color: var(--ink); }
+
+  .bl-back__arrow { display: inline-block; transition: transform .42s cubic-bezier(.22, .7, .3, 1) .12s; }
+  .bl-back:hover .bl-back__arrow { transform: translateX(-5px); }
+
+  .bl-back__text { font-weight: 400; letter-spacing: 0; transition: letter-spacing .42s cubic-bezier(.22, .7, .3, 1); }
+  .bl-back:hover .bl-back__text { font-weight: 700; letter-spacing: -.01em; }
+
+  /* ── 环：静止时两根线半径相同、完全重合 = 一个完整的圆；hover 才转起来 ──
+     两根线刻意不同步：
+       主环 A：转 2.4s、压扁 1.2s、幅度 8.5%（老实）
+       副环 B：转 3.1s（反向）、压扁 1.55s、幅度 20%（撒野）
+     两条周期互质 ⇒ 永远对不上拍，才像黑洞，而不是两根同步的线。 */
+  .bl-back__ring { width: var(--ring); height: var(--ring); flex: none; overflow: visible; }
+  .ring__rot, .ring__rot--b, .ring__sq, .ring__sq--b {
+    transform-origin: 12px 12px;
+    transition: transform .28s ease-out;
+  }
+  .bl-back:hover .ring__rot, .ring-big:hover .ring__rot { animation: ring-rot 2.4s linear infinite; }
+  /* 副环**同向**转，只是慢一点（3.1s）。别用 reverse：反向时两个圈会互相"顶"，
+     alpha 说那看着 duang duang 的——反向带来的不是"乱"，是"打架" */  .bl-back:hover .ring__rot--b, .ring-big:hover .ring__rot--b { animation: ring-rot 3.1s linear infinite; }
+  .bl-back:hover .ring__sq, .ring-big:hover .ring__sq { animation: ring-squash 1.2s ease-in-out infinite; }
+  .bl-back:hover .ring__sq--b, .ring-big:hover .ring__sq--b { animation: ring-squash-wide 1.55s ease-in-out infinite; }
+
+  .bl-back__ring circle { fill: none; stroke: var(--ink); stroke-width: 1.35; }
+  .bl-back__ring circle.b { stroke-width: 1.05; opacity: .5; }
+
+  /* "走形"（轻搅的墨）：低频率的噪声位移，幅度很小、速度很慢。
+     两个环各挂自己的 filter，参数由 JS 在 hover 期间慢慢推。
+     ⚠️ 只让**轮廓**走形，不许出现尖刺——所以 baseFrequency 压到 0.015 上下、
+     numOctaves 只留 1（层数一多就会变成毛刺）。 */
+  .ring__sq circle, .ring__sq--b circle { filter: url(#warp-a); }
+  .ring__sq--b circle.b { filter: url(#warp-b); }
+
+  @keyframes ring-rot { to { transform: rotate(360deg); } }
+  /* 0% / 100% 必须是 scale(1,1)：静止态没有动画，形状就靠这两个值 */
+  @keyframes ring-squash {
+    0%   { transform: scale(1, 1); }
+    25%  { transform: scale(1.085, .925); }
+    50%  { transform: scale(1, 1); }
+    75%  { transform: scale(.925, 1.085); }
+    100% { transform: scale(1, 1); }
+  }
+  @keyframes ring-squash-wide {
+    0%   { transform: scale(1, 1); }
+    20%  { transform: scale(1.20, .81); }
+    50%  { transform: scale(1, 1); }
+    80%  { transform: scale(.81, 1.20); }
+    100% { transform: scale(1, 1); }
+  }
+
+  .note { margin: 10px 0 0; color: #b3ada1; font-size: 11.5px; line-height: 1.75; }
+
+  .ring-big { width: 150px; height: 150px; flex: none; overflow: visible; cursor: crosshair; }
+  .ring-big circle { fill: none; stroke: #1a1917; stroke-width: 1.05; }
+  .ring-big circle.b { stroke-width: .85; opacity: .55; }
+
+  .play { margin-top: 30px; padding: 8px 18px; border-radius: 6px; cursor: pointer; border: 1px solid rgba(26,25,23,.22); background: #fff; color: var(--ink); font: inherit; font-size: 13px; }
+  .play:hover { border-color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ring__rot, .ring__rot--b, .ring__sq, .ring__sq--b { animation: none !important; }
+    .bl-back__arrow { transition: none; transform: none !important; }
+    .bl-back__text { transition: none; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- 主环：更轻的走形；副环：更明显一点（配合 20% 的椭） -->
+    <filter id="warp-a" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="1" seed="3" result="n" />
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+    <filter id="warp-b" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="1" seed="9" result="n" />
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </defs>
+</svg>
+<main>
+  <h1>返回按钮 · 黑环 hover（v3）</h1>
+  <p class="lead">
+    <b>静止：一个完整的圆</b>（两根线半径一样、完全重合）。<b>hover：循环</b>——两根线<b>各转各的、各椭各的</b>：<br>
+    主环转 2.4s / 椭 8.5%，副环转 3.1s（<b>同向</b>，不反向）/ 椭 <b>20%</b>；两条周期对不上拍，所以看起来是"散"的、更像黑洞，而不是两根同步的线。<br>
+    另外<b>两个环都会轻轻"走形"</b>：轮廓像被缓慢搅动的墨，幅度很小（主环约 1.2–1.9、副环约 1.0–3.3，单位是 viewBox 的 24 格）——不是毛刺。<br>
+    同时箭头 <b>120ms 后左移 5px</b>、文字<b>变粗</b>（静态字重，跳变）。
+  </p>
+
+  <div class="row">
+    <div class="row__label">主推 · 21px</div>
+    <a class="bl-back" href="#" onclick="return false">
+      <span class="bl-back__arrow">←</span>
+      <span class="bl-back__text">alpha 的主页</span>
+      <svg class="bl-back__ring" viewBox="0 0 24 24" aria-hidden="true">
+        <g class="ring__rot"><g class="ring__sq"><circle cx="12" cy="12" r="9.1" /></g></g>
+        <g class="ring__rot--b"><g class="ring__sq--b"><circle class="b" cx="12" cy="12" r="9.1" /></g></g>
+      </svg>
+    </a>
+  </div>
+
+  <div class="row">
+    <div class="row__label">小一号 · 18px</div>
+    <a class="bl-back" href="#" onclick="return false" style="--ring: 18px; font-size: 17px">
+      <span class="bl-back__arrow">←</span>
+      <span class="bl-back__text">回首页</span>
+      <svg class="bl-back__ring" viewBox="0 0 24 24" aria-hidden="true">
+        <g class="ring__rot"><g class="ring__sq"><circle cx="12" cy="12" r="9.1" /></g></g>
+        <g class="ring__rot--b"><g class="ring__sq--b"><circle class="b" cx="12" cy="12" r="9.1" /></g></g>
+      </svg>
+    </a>
+  </div>
+
+  <div class="row">
+    <div class="row__label">大一号 · 26px</div>
+    <a class="bl-back" href="#" onclick="return false" style="--ring: 26px; font-size: 24px">
+      <span class="bl-back__arrow">←</span>
+      <span class="bl-back__text">个人主页</span>
+      <svg class="bl-back__ring" viewBox="0 0 24 24" aria-hidden="true">
+        <g class="ring__rot"><g class="ring__sq"><circle cx="12" cy="12" r="9.1" /></g></g>
+        <g class="ring__rot--b"><g class="ring__sq--b"><circle class="b" cx="12" cy="12" r="9.1" /></g></g>
+      </svg>
+    </a>
+  </div>
+
+  <div class="row">
+    <div class="row__label">放大 150px<br>看形变</div>
+    <svg class="ring-big" viewBox="0 0 24 24" aria-hidden="true">
+      <g class="ring__rot"><g class="ring__sq"><circle cx="12" cy="12" r="9.1" /></g></g>
+      <g class="ring__rot--b"><g class="ring__sq--b"><circle class="b" cx="12" cy="12" r="9.1" /></g></g>
+    </svg>
+    <p class="note">
+      鼠标放上去看：主环老实、副环撒野——两个周期互质（2.4 / 3.1 与 1.2 / 1.55），永远对不上拍。<br>
+      移开就停回一个完整的圆。
+    </p>
+  </div>
+
+  <button class="play" id="play">播放 4 秒（不用鼠标）</button>
+</main>
+
+<script>
+/* 环的"走形"：低频率噪声位移，参数由 rAF 慢慢推。
+   为什么不用 CSS：filter 原语的 scale / baseFrequency 不能靠 keyframes 过渡，只能改属性。
+   为什么只在 hover 时跑：静止必须是干净的圆，而且一直在跑会白烧 CPU。 */
+const reduce = () => matchMedia('(prefers-reduced-motion: reduce)').matches
+const dispA = document.querySelector('#warp-a feDisplacementMap')
+const dispB = document.querySelector('#warp-b feDisplacementMap')
+const turbA = document.querySelector('#warp-a feTurbulence')
+const turbB = document.querySelector('#warp-b feTurbulence')
+
+let raf = 0
+let t0 = 0
+let holders = 0
+
+function tick(now) {
+  const t = (now - t0) / 1000
+  // 两个环的相位、频率都不同：主环轻、副环明显一点
+  const sa = 1.15 + 0.75 * Math.sin(t * 0.95)
+  const sb = 2.15 + 1.15 * Math.sin(t * 1.27 + 1.7)
+  dispA.setAttribute('scale', sa.toFixed(2))
+  dispB.setAttribute('scale', sb.toFixed(2))
+  turbA.setAttribute('baseFrequency', (0.014 + 0.0035 * Math.sin(t * 0.6 + 1.1)).toFixed(4))
+  turbB.setAttribute('baseFrequency', (0.019 + 0.0055 * Math.sin(t * 0.78 + 0.4)).toFixed(4))
+  raf = requestAnimationFrame(tick)
+}
+
+function startWarp() {
+  if (reduce()) return
+  holders += 1
+  if (!raf) {
+    t0 = performance.now()
+    raf = requestAnimationFrame(tick)
+  }
+}
+
+function stopWarp() {
+  holders = Math.max(0, holders - 1)
+  if (holders > 0 || !raf) return
+  cancelAnimationFrame(raf)
+  raf = 0
+  // 收尾：用 260ms 把位移收回 0，避免"啪"地一下回到直边
+  const t0f = performance.now()
+  const a0 = parseFloat(dispA.getAttribute('scale') || '0')
+  const b0 = parseFloat(dispB.getAttribute('scale') || '0')
+  const fade = (now) => {
+    const p = Math.min(1, (now - t0f) / 260)
+    dispA.setAttribute('scale', (a0 * (1 - p)).toFixed(2))
+    dispB.setAttribute('scale', (b0 * (1 - p)).toFixed(2))
+    if (p < 1) requestAnimationFrame(fade)
+    else {
+      dispA.setAttribute('scale', '0')
+      dispB.setAttribute('scale', '0')
+      turbA.setAttribute('baseFrequency', '0.015')
+      turbB.setAttribute('baseFrequency', '0.02')
+    }
+  }
+  requestAnimationFrame(fade)
+}
+
+document.querySelectorAll('.bl-back, .ring-big').forEach((el) => {
+  el.addEventListener('pointerenter', startWarp)
+  el.addEventListener('pointerleave', stopWarp)
+})
+
+const btn = document.getElementById('play')
+btn.addEventListener('click', () => {
+  const targets = [document.querySelector('.bl-back'), document.querySelector('.ring-big')]
+  targets.forEach((el) => el.classList.add('is-demo'))
+  startWarp()
+  setTimeout(() => {
+    targets.forEach((el) => el.classList.remove('is-demo'))
+    stopWarp()
+  }, 4000)
+})
+
+const style = document.createElement('style')
+style.textContent = `
+  .bl-back.is-demo { color: var(--ink); }
+  .bl-back.is-demo .bl-back__arrow { transform: translateX(-5px); }
+  .bl-back.is-demo .bl-back__text { font-weight: 700; letter-spacing: -.01em; }
+  .bl-back.is-demo .ring__rot, .ring-big.is-demo .ring__rot { animation: ring-rot 2.4s linear infinite; }
+  .bl-back.is-demo .ring__rot--b, .ring-big.is-demo .ring__rot--b { animation: ring-rot 3.1s linear infinite; }
+  .bl-back.is-demo .ring__sq, .ring-big.is-demo .ring__sq { animation: ring-squash 1.2s ease-in-out infinite; }
+  .bl-back.is-demo .ring__sq--b, .ring-big.is-demo .ring__sq--b { animation: ring-squash-wide 1.55s ease-in-out infinite; }
+`
+document.head.appendChild(style)
+</script>
+</body>
+</html>
